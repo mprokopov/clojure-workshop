@@ -1,6 +1,6 @@
 (ns user
-  (:require [clojure-sample-backend.core :refer [start stop restart] :as core]))
+  (:require [clojure-workshop.core :refer [start stop restart] :as core]))
 
-(in-ns 'clojure-sample-backend)
+(in-ns 'clojure-workshop.core)
 
 ;; (-> (scrap-uri "https://super-truper.com.ua/keysy/") parse-titles)

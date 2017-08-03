@@ -1,4 +1,4 @@
-(ns clojure-sample-backend.core
+(ns clojure-workshop.core
   (:require [compojure.core :as compojure]
             [ring.adapter.jetty :as jetty]
             [net.cgrand.enlive-html :as enlive]
