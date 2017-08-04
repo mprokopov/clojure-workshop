@@ -27,6 +27,11 @@
   [url]
   (enlive/html-resource (java.net.URL. url)))
 
+(defn transform-price
+  "transforms string to number"
+  [price-str]
+  (Integer/parseInt (str/join (re-seq #"\d" price-str))))
+
 
 (defn parse-titles
   ([res] (->> (enlive/select res *titles*)
@@ -39,7 +44,7 @@
   [res]
   (let [cat-content #(first (mapcat :content %))
         parse-title (fn [item] {:title (cat-content (enlive/select item *item-title*))})
-        parse-price (fn [item] {:price (cat-content (enlive/select item *item-price*))})
+        parse-price (fn [item] {:price (transform-price (cat-content (enlive/select item *item-price*)))})
         parse-title-price (fn [item] (into {} [(parse-title item) (parse-price item)]))]
     (->> (enlive/select res *item*)
          (map parse-title-price))))
@@ -49,6 +54,21 @@
    :items (parse-items res)})
 
 ;; (map #(->> (scrap-uri %) parse-title-items) *urls*)
+(defn parse-uris []
+  (map #(->> (scrap-uri %) parse-title-items) *urls*))
+
+(defn parse-and-save-uri [uri]
+  (let [parsed-uri (->> (scrap-uri uri)
+                        parse-title-items)
+        db (or (clojure.edn/read-string (slurp "data.edn")) (list))]
+     (spit "data.edn" (pr-str (conj db parsed-uri)))))
+
+(defn find-most-expensive-item []
+  (let [db (clojure.edn/read-string (slurp "data.edn"))
+        items (mapcat :items db)]
+    (-> (sort-by :price items)
+        last)))
+
 
 (compojure/defroutes app
   (compojure/GET "/" [] {:body "Hello World!"
