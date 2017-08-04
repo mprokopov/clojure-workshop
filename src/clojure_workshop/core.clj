@@ -8,22 +8,47 @@
             [clojure.string :as str]))
 
 
-(def ^:dynamic *titles* [:body :*> :div.catalogCard-title :a])
+(def ^:dynamic *titles* [:body :*> :h1#j-catalog-header])
 
-;; try "https://super-truper.com.ua/keysy/"
-;; try "https://super-truper.com.ua/multituly/"
+(def ^:dynamic *item* [:body :*> :div.catalogCard-info])
 
-(defn scrap-uri [url]
+(def ^:dynamic *item-price* [:div.catalogCard-price])
+
+(def ^:dynamic *item-title* [:div.catalogCard-title :a])
+
+
+(def ^:dynamic *urls* ["https://super-truper.com.ua/multituly/"
+                       "https://super-truper.com.ua/keysy/"])
+
+(def data (atom nil))
+
+(defn scrap-uri
+  "fetches document from URL and returns parse DOM as map"
+  [url]
   (enlive/html-resource (java.net.URL. url)))
 
 
 (defn parse-titles
-  ([res] (enlive/select res *titles*))
+  ([res] (->> (enlive/select res *titles*)
+              (map :content)
+              ffirst))
   ([res arr] (enlive/select res arr)))
 
-(defn map-href-title [coll]
-  (let [f (fn [{{href :href} :attrs content :content}] {:link href :title (first content)})]
-    (map f coll)))
+(defn parse-items
+  "parses DOM map and returns list of items with title and price"
+  [res]
+  (let [cat-content #(first (mapcat :content %))
+        parse-title (fn [item] {:title (cat-content (enlive/select item *item-title*))})
+        parse-price (fn [item] {:price (cat-content (enlive/select item *item-price*))})
+        parse-title-price (fn [item] (into {} [(parse-title item) (parse-price item)]))]
+    (->> (enlive/select res *item*)
+         (map parse-title-price))))
+
+(defn parse-title-items [res]
+  {:header (parse-titles res)
+   :items (parse-items res)})
+
+;; (map #(->> (scrap-uri %) parse-title-items) *urls*)
 
 (compojure/defroutes app
   (compojure/GET "/" [] {:body "Hello World!"
@@ -40,8 +65,7 @@
   (compojure/GET "/parse" [uri] {:status 200
                                  :headers {"Content-Type" "application/json"}
                                  :body (->> (scrap-uri uri)
-                                            parse-titles
-                                            map-href-title
+                                            parse-title-items
                                             cheshire/generate-string)}))
 
 
