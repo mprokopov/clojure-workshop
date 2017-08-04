@@ -19,10 +19,11 @@
 
 
 (def ^:dynamic *urls* ["https://super-truper.com.ua/multituly/"
-                       "https://super-truper.com.ua/keysy/"])
+                       "https://super-truper.com.ua/keysy/"
+                       "https://super-truper.com.ua/generatory/"])
 
-(defn read-db []
-  (clojure.edn/read-string (slurp "data.edn")))
+(defn read-db "reads from data.edn or returns empty list" []
+  (or (clojure.edn/read-string (slurp "data.edn")) (list)))
 
 (defn scrap-uri
   "fetches document from URL and returns parse DOM as map"
@@ -62,14 +63,15 @@
 (defn parse-and-save-uri [uri]
   (let [parsed-uri (->> (scrap-uri uri)
                         parse-title-items)
-        db (or (clojure.edn/read-string (slurp "data.edn")) (list))]
+        db (read-db)]
      (spit "data.edn" (pr-str (conj db parsed-uri)))))
 
 
 (defn titles-from-db "returns only headers from DB"
   []
-  (let [db (clojure.edn/read-string (slurp "data.edn"))]
-     (map :header db)))
+  (let [db (read-db)
+        f (fn [{:keys [header items]}] {:header header :items (count items)})] 
+     (map f db)))
 
 (defn find-most-expensive-item []
   (let [db (clojure.edn/read-string (slurp "data.edn"))
@@ -80,8 +82,9 @@
 (defn search-item-by-title [query]
   (let [db (read-db)
         items (mapcat :items db)
-        re (re-pattern (str ".*" "(?u)(?i)" query ".*"))
-        f (fn [item] (re-matches re (:title item)))]
+        parts (str/join ".*" (str/split query #" ")) ;; split by space
+        pattern (re-pattern (str ".*" "(?u)(?i)" parts ".*"))
+        f (fn [item] (re-matches pattern (:title item)))]
    (filter f items)))
 
 (compojure/defroutes app
@@ -95,7 +98,7 @@
                                       [:body
                                        [:h2 "Scrapped pages"]
                                        [:ul
-                                        (for [title (titles-from-db)] [:li title])]
+                                        (for [{title :header items-count :items} (titles-from-db)] [:li title " " items-count])]
                                        [:h2 "Most expensive item"]
                                        (let [{title :title price :price} (find-most-expensive-item)]
                                          [:dl
