@@ -4,6 +4,7 @@
             [net.cgrand.enlive-html :as enlive]
             [cheshire.core :as cheshire]
             [hiccup.core]
+            [clojure.edn]
             [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
             [clojure.string :as str]))
 
@@ -20,7 +21,8 @@
 (def ^:dynamic *urls* ["https://super-truper.com.ua/multituly/"
                        "https://super-truper.com.ua/keysy/"])
 
-(def data (atom nil))
+(defn read-db []
+  (clojure.edn/read-string (slurp "data.edn")))
 
 (defn scrap-uri
   "fetches document from URL and returns parse DOM as map"
@@ -63,30 +65,63 @@
         db (or (clojure.edn/read-string (slurp "data.edn")) (list))]
      (spit "data.edn" (pr-str (conj db parsed-uri)))))
 
+
+(defn titles-from-db "returns only headers from DB"
+  []
+  (let [db (clojure.edn/read-string (slurp "data.edn"))]
+     (map :header db)))
+
 (defn find-most-expensive-item []
   (let [db (clojure.edn/read-string (slurp "data.edn"))
         items (mapcat :items db)]
     (-> (sort-by :price items)
         last)))
 
+(defn search-item-by-title [query]
+  (let [db (read-db)
+        items (mapcat :items db)
+        re (re-pattern (str ".*" "(?u)(?i)" query ".*"))
+        f (fn [item] (re-matches re (:title item)))]
+   (filter f items)))
 
 (compojure/defroutes app
   (compojure/GET "/" [] {:body "Hello World!"
                          :status 200
                          :headers {"Content-Type" "text/plain"}})
-  (compojure/GET "/form" [] {:status 200
-                             :headers {"Content-Type" "text/html"}
-                             :body (hiccup.core/html
-                                    [:html
-                                      [:body [:form {:action "/parse" :method :get}
-                                              [:input {:type "text" :name "uri"}]
-                                              [:input {:type "submit" :value "Scrap!"}]]]])})
+  (compojure/GET "/form" [q] {:status 200
+                              :headers {"Content-Type" "text/html"}
+                              :body (hiccup.core/html
+                                     [:html
+                                      [:body
+                                       [:h2 "Scrapped pages"]
+                                       [:ul
+                                        (for [title (titles-from-db)] [:li title])]
+                                       [:h2 "Most expensive item"]
+                                       (let [{title :title price :price} (find-most-expensive-item)]
+                                         [:dl
+                                          [:dt "Title"]
+                                          [:dd title]
+                                          [:dt "Price"]
+                                          [:dd price]])
+                                       [:h2 "Find"]
+                                       [:form {:method :get}
+                                        [:label
+                                         "Search by title"
+                                         [:br]
+                                         [:input {:name "q" :type :text}]]]
+                                       (when q
+                                         [:h4 q]
+                                         [:ul
+                                          (for [{title :title price :price} (search-item-by-title q)]
+                                            [:li title])])
+                                       [:h2 "Scrap"]
+                                       [:form {:action "/parse" :method :get}
+                                        [:input {:type "text" :name "uri"}]
+                                        [:input {:type "submit" :value "Scrap!"}]]]])})
 
-  (compojure/GET "/parse" [uri] {:status 200
-                                 :headers {"Content-Type" "application/json"}
-                                 :body (->> (scrap-uri uri)
-                                            parse-title-items
-                                            cheshire/generate-string)}))
+  (compojure/GET "/parse" [uri] (do (parse-and-save-uri uri)
+                                    {:status 302
+                                     :headers {"Location" "/form"}})))
 
 
 (def wrapped-app (-> app
