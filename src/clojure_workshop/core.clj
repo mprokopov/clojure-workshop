@@ -33,7 +33,7 @@
 (defn transform-price
   "transforms string to number"
   [price-str]
-  (Integer/parseInt (str/join (re-seq #"\d" price-str))))
+  (Float/parseFloat (str/join (re-seq #"[\d\.]" price-str))))
 
 
 (defn parse-titles
@@ -98,7 +98,8 @@
                                       [:body
                                        [:h2 "Scrapped pages"]
                                        [:ul
-                                        (for [{title :header items-count :items} (titles-from-db)] [:li title " " items-count])]
+                                        (for [{title :header items-count :items} (titles-from-db)]
+                                          [:li title " " items-count])]
                                        [:h2 "Most expensive item"]
                                        (let [{title :title price :price} (find-most-expensive-item)]
                                          [:dl
@@ -117,8 +118,8 @@
                                          [:ul
                                           (for [{title :title price :price} (search-item-by-title q)]
                                             [:li title])])
-                                       [:h2 "Scrap"]
                                        [:form {:action "/parse" :method :get}
+                                        [:h2 "Scrap"]
                                         [:input {:type "text" :name "uri"}]
                                         [:input {:type "submit" :value "Scrap!"}]]]])})
 
