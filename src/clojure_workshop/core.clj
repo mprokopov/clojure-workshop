@@ -74,7 +74,7 @@
      (map f db)))
 
 (defn find-most-expensive-item []
-  (let [db (clojure.edn/read-string (slurp "data.edn"))
+  (let [db (read-db)
         items (mapcat :items db)]
     (-> (sort-by :price items)
         last)))
