@@ -1,7 +1,8 @@
 (ns clojure-workshop.core
   (:require [compojure.core :as compojure]
             [ring.adapter.jetty :as jetty]
-            [ring.middleware.defaults :refer [wrap-defaults site-defaults]]))
+            [ring.middleware.defaults :refer [wrap-defaults site-defaults]]
+            [ring.middleware.reload :refer [wrap-reload]]))
 
 (compojure/defroutes app
   (compojure/GET "/" [] {:body "Hello World!"
@@ -11,10 +12,10 @@
 (def wrapped-app (-> app
                      (wrap-defaults site-defaults)))
 
-(def server (atom nil))
+(defonce server (atom nil))
 
 (defn start []
-  (reset! server (jetty/run-jetty #'wrapped-app {:join? false :port 8080})))
+  (reset! server (jetty/run-jetty (wrap-reload #'wrapped-app) {:join? false :port 8080})))
 
 (defn stop []
   (.stop @server))
