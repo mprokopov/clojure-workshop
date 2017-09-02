@@ -6,7 +6,8 @@
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [compojure "1.6.0"]
                  [ring/ring-jetty-adapter "1.6.2"]
-                 [ring/ring-defaults "0.3.1"]]
+                 [ring/ring-defaults "0.3.1"]
+                 [ring/ring-devel "1.6.2"]]
   :source-paths ["dev" "src"])
   ;:main clojure-workshop.core)
 
